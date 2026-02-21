@@ -7,6 +7,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.core import StateMachine
 from homeassistant.helpers import selector
 
 from .const import (
@@ -24,6 +25,24 @@ from .const import (
     DOMAIN,
     NAME,
 )
+
+
+def _validate_sensors(
+    hass_states: StateMachine,
+    user_input: dict[str, Any],
+) -> dict[str, str]:
+    """Return an errors dict if any required sensor entity is missing or unavailable."""
+    errors: dict[str, str] = {}
+    for key in (CONF_GAS_KWH_SENSOR, CONF_EXTERNAL_TEMP_SENSOR, CONF_WIND_SPEED_SENSOR):
+        entity_id = user_input.get(key)
+        if not entity_id:
+            continue
+        state = hass_states.get(entity_id)
+        if state is None:
+            errors[key] = "entity_not_found"
+        elif state.state in ("unknown", "unavailable"):
+            errors[key] = "entity_unavailable"
+    return errors
 
 
 def _build_schema(
@@ -66,7 +85,7 @@ def _build_schema(
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(
                     min=0.1,
-                    max=1.0,
+                    max=1.1,
                     step=0.01,
                     mode=selector.NumberSelectorMode.BOX,
                 )
@@ -120,16 +139,19 @@ class EcoComfortSyncConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Handle the user-initiated setup step."""
-        if user_input is not None:
-            # Prevent duplicate entries
-            await self.async_set_unique_id(DOMAIN)
-            self._abort_if_unique_id_configured()
+        errors: dict[str, str] = {}
 
-            return self.async_create_entry(title=NAME, data=user_input)
+        if user_input is not None:
+            errors = _validate_sensors(self.hass.states, user_input)
+            if not errors:
+                await self.async_set_unique_id(DOMAIN)
+                self._abort_if_unique_id_configured()
+                return self.async_create_entry(title=NAME, data=user_input)
 
         return self.async_show_form(
             step_id="user",
-            data_schema=_build_schema(),
+            data_schema=_build_schema(user_input),
+            errors=errors,
         )
 
     @staticmethod
@@ -155,17 +177,7 @@ class EcoComfortSyncOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validate that referenced entities still exist
-            for key in (
-                CONF_GAS_KWH_SENSOR,
-                CONF_EXTERNAL_TEMP_SENSOR,
-                CONF_WIND_SPEED_SENSOR,
-            ):
-                entity_id = user_input.get(key)
-                if entity_id and self.hass.states.get(entity_id) is None:
-                    errors["base"] = "invalid_entity"
-                    break
-
+            errors = _validate_sensors(self.hass.states, user_input)
             if not errors:
                 return self.async_create_entry(title="", data=user_input)
 

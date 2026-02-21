@@ -17,6 +17,10 @@
     },
     "abort": {
       "already_configured": "EcoComfort Sync is already configured."
+    },
+    "error": {
+      "entity_not_found": "The selected entity could not be found. Please choose a valid sensor.",
+      "entity_unavailable": "The selected entity is currently unavailable or has an unknown state."
     }
   },
   "options": {
@@ -33,6 +37,10 @@
           "wind_factor": "Wind Infiltration Factor"
         }
       }
+    },
+    "error": {
+      "entity_not_found": "The selected entity could not be found. Please choose a valid sensor.",
+      "entity_unavailable": "The selected entity is currently unavailable or has an unknown state."
     }
   }
 }
