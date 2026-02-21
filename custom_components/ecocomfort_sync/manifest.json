@@ -1,0 +1,12 @@
+{
+  "domain": "ecocomfort_sync",
+  "name": "EcoComfort Sync",
+  "version": "1.0.0",
+  "documentation": "https://github.com/ivmreg/ha-heating-efficiency",
+  "issue_tracker": "https://github.com/ivmreg/ha-heating-efficiency/issues",
+  "codeowners": ["@ivmreg"],
+  "requirements": [],
+  "dependencies": [],
+  "iot_class": "calculated",
+  "config_flow": true
+}

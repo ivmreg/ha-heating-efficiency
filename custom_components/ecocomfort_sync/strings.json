@@ -1,0 +1,46 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EcoComfort Sync Setup",
+        "description": "Connect your energy and weather entities so EcoComfort Sync can calculate building efficiency metrics.",
+        "data": {
+          "gas_kwh_sensor": "Gas kWh Sensor (Hildebrand MQTT)",
+          "external_temp_sensor": "External Temperature Sensor",
+          "wind_speed_sensor": "Wind Speed Sensor (Met Office)",
+          "boiler_efficiency": "Boiler Efficiency",
+          "pump_wattage": "Boiler Pump Wattage (W)",
+          "t_base": "Heating Degree Day Base Temperature (°C)",
+          "wind_factor": "Wind Infiltration Factor"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "EcoComfort Sync is already configured."
+    },
+    "error": {
+      "entity_not_found": "The selected entity could not be found. Please choose a valid sensor.",
+      "entity_unavailable": "The selected entity is currently unavailable or has an unknown state."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EcoComfort Sync Options",
+        "data": {
+          "gas_kwh_sensor": "Gas kWh Sensor (Hildebrand MQTT)",
+          "external_temp_sensor": "External Temperature Sensor",
+          "wind_speed_sensor": "Wind Speed Sensor (Met Office)",
+          "boiler_efficiency": "Boiler Efficiency",
+          "pump_wattage": "Boiler Pump Wattage (W)",
+          "t_base": "Heating Degree Day Base Temperature (°C)",
+          "wind_factor": "Wind Infiltration Factor"
+        }
+      }
+    },
+    "error": {
+      "entity_not_found": "The selected entity could not be found. Please choose a valid sensor.",
+      "entity_unavailable": "The selected entity is currently unavailable or has an unknown state."
+    }
+  }
+}
