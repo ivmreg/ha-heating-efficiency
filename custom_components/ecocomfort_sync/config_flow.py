@@ -152,9 +152,34 @@ class EcoComfortSyncOptionsFlow(config_entries.OptionsFlow):
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Handle options update."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+        errors: dict[str, str] = {}
 
+        if user_input is not None:
+            # Validate that referenced entities still exist
+            for key in (
+                CONF_GAS_KWH_SENSOR,
+                CONF_EXTERNAL_TEMP_SENSOR,
+                CONF_WIND_SPEED_SENSOR,
+            ):
+                entity_id = user_input.get(key)
+                if entity_id and self.hass.states.get(entity_id) is None:
+                    errors["base"] = "invalid_entity"
+                    break
+
+            if not errors:
+                return self.async_create_entry(title="", data=user_input)
+
+            # On validation error, re-show the form preserving the user input
+            current = {
+                **self._config_entry.data,
+                **self._config_entry.options,
+                **user_input,
+            }
+            return self.async_show_form(
+                step_id="init",
+                data_schema=_build_schema(current),
+                errors=errors,
+            )
         # Pre-fill with current values (options override data for updated fields)
         current = {**self._config_entry.data, **self._config_entry.options}
         return self.async_show_form(
