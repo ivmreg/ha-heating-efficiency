@@ -36,7 +36,6 @@ The following integrations (or equivalent entity providers) must already be set 
 | Wind speed | Met Office / any weather integration | Sensor with `device_class: wind_speed` |
 | Smart TRVs | [Tado](https://www.home-assistant.io/integrations/tado/) | `climate.tado_smart_radiator_thermostat_*` entities |
 | Room temperature sensors | Qingping CO₂ / any temperature sensor | Sensors with `device_class: temperature` |
-| Battery sensors (optional) | Any device battery sensor | `sensor.*_battery` entities |
 
 ---
 
@@ -108,14 +107,6 @@ One set is created for every `climate.tado_smart_radiator_thermostat_*` entity f
 | `sensor.ecocomfort_sync_{room}_short_cycling_1h` | cycles | Number of heat-on → heat-off cycles in the last 60 minutes. Attributes include `is_short_cycling` (bool), `cycle_count`, and `threshold`. |
 | `sensor.ecocomfort_sync_{room}_heating_minutes_today` | min | Minutes the TRV has been calling for heat today. Resets at local midnight. |
 
-### Per-battery sensors (1 per discovered battery sensor)
-
-One sensor is created for every `sensor.*_battery` entity found at startup.
-
-| Entity pattern | Unit | Description |
-|---|---|---|
-| `sensor.ecocomfort_sync_{device}_battery_drain_rate` | %/day | Average daily battery drain rate. Attributes include `is_premature_drain` (bool), `drain_threshold_pct_per_day` (default 5 %/day), and `source_entity`. Recharge/replacement days are excluded from the average. |
-
 ---
 
 ## How it works
@@ -146,10 +137,6 @@ Computed from the simple daily average of all outdoor temperature readings recei
 
 A TRV is considered to be short cycling if it has completed ≥ 6 heat-on/heat-off cycles within any rolling 60-minute window.
 
-### Battery drain rate
-
-The drain rate (% per day) is computed from daily snapshot differences. Days where the battery level increases (charging or replacement) are excluded so that rechargeable or swapped batteries don't deflate the reported drain. A drain rate exceeding 5 %/day is flagged as `is_premature_drain`.
-
 ---
 
 ## Entity discovery
@@ -160,7 +147,6 @@ EcoComfort Sync auto-discovers the following entities at startup. No manual enti
 |---|---|
 | Smart TRVs | Entity IDs matching `^climate\.tado_smart_radiator_thermostat` |
 | Room temperature sensors | Entity IDs matching `sensor.qp_sensor_*` or `sensor.co2_meter*` **and** `device_class == "temperature"` |
-| Battery sensors | Entity IDs matching `sensor.*_battery`, or any sensor with `device_class == "battery"` |
 
 Discovery runs once at integration startup. If you add new TRVs or sensors, restart Home Assistant (or reload the integration) to pick them up.
 
@@ -184,23 +170,6 @@ action:
       message: >
         Bedroom TRV is short cycling
         ({{ states('sensor.ecocomfort_sync_bedroom_short_cycling_1h') }} cycles in the last hour).
-```
-
-### Alert on premature battery drain
-
-```yaml
-alias: "Alert: Premature battery drain"
-trigger:
-  - platform: template
-    value_template: >
-      {{ states.sensor
-         | selectattr('object_id', 'match', 'ecocomfort_sync_.*_battery_drain_rate')
-         | selectattr('attributes.is_premature_drain', 'eq', true)
-         | list | count > 0 }}
-action:
-  - service: notify.mobile_app
-    data:
-      message: "One or more devices have unusually high battery drain rates."
 ```
 
 ### Daily efficiency report

@@ -13,7 +13,6 @@ _LOGGER = logging.getLogger(__name__)
 _TADO_CLIMATE_PATTERN = re.compile(r"^climate\.tado_smart_radiator_thermostat", re.IGNORECASE)
 _QINGPING_SENSOR_PATTERN = re.compile(r"^sensor\.qp_sensor", re.IGNORECASE)
 _CO2_METER_PATTERN = re.compile(r"^sensor\.co2_meter", re.IGNORECASE)
-_BATTERY_PATTERN = re.compile(r"^sensor\..+_battery$", re.IGNORECASE)
 
 
 def discover_trv_entities(hass: HomeAssistant) -> list[str]:
@@ -58,18 +57,6 @@ def discover_room_temp_sensors(hass: HomeAssistant) -> list[str]:
         )
     else:
         _LOGGER.debug("EcoComfort Sync: discovered room temp sensors: %s", results)
-    return results
-
-
-def discover_battery_sensors(hass: HomeAssistant) -> list[str]:
-    """Return all battery sensor entity IDs (by name pattern or device_class)."""
-    results = [
-        state.entity_id
-        for state in hass.states.async_all("sensor")
-        if _BATTERY_PATTERN.match(state.entity_id)
-        or state.attributes.get("device_class") == "battery"
-    ]
-    _LOGGER.debug("EcoComfort Sync: discovered battery sensors: %s", results)
     return results
 
 

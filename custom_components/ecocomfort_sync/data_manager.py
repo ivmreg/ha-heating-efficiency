@@ -28,7 +28,6 @@ from .const import (
     CONF_T_BASE,
     CONF_WIND_FACTOR,
     CONF_WIND_SPEED_SENSOR,
-    DEFAULT_BATTERY_DRAIN_THRESHOLD,
     DEFAULT_BOILER_EFFICIENCY,
     DEFAULT_PUMP_WATTAGE,
     DEFAULT_T_BASE,
@@ -40,7 +39,6 @@ from .const import (
     WINDOW_24H,
 )
 from .helpers import (
-    discover_battery_sensors,
     discover_room_temp_sensors,
     discover_trv_entities,
 )
@@ -82,16 +80,6 @@ class TRVTracker:
     energy_kwh_today: float = 0.0
 
 
-@dataclass
-class BatteryTracker:
-    """Per-battery mutable state."""
-
-    # Up to 7 (date, level) snapshots
-    daily_snapshots: deque = field(default_factory=lambda: deque(maxlen=7))
-    # Drain rate in %/day; None until at least 2 snapshots exist
-    drain_rate_per_day: float | None = None
-
-
 # ---------------------------------------------------------------------------
 # Main manager class
 # ---------------------------------------------------------------------------
@@ -123,21 +111,13 @@ class EcoComfortDataManager:
         self.wind_factor: float = float(
             config.get(CONF_WIND_FACTOR, DEFAULT_WIND_FACTOR)
         )
-        # Battery drain rate threshold above which "premature drain" is flagged (%/day)
-        self.battery_drain_threshold: float = float(
-            config.get("battery_drain_threshold", DEFAULT_BATTERY_DRAIN_THRESHOLD)
-        )
 
         # Discovered entity lists (populated in async_discover_entities)
         self.trv_entities: list[str] = []
         self.room_temp_entities: list[str] = []
-        self.battery_entities: list[str] = []
 
         # Per-TRV tracking
         self._trv: dict[str, TRVTracker] = {}
-
-        # Per-battery tracking
-        self._battery: dict[str, BatteryTracker] = {}
 
         # Rolling 24-h HTC sample buffer
         self._htc_buffer: deque[HtcSample] = deque()
@@ -188,12 +168,9 @@ class EcoComfortDataManager:
         """Discover and initialise all trackable entities."""
         self.trv_entities = discover_trv_entities(self._hass)
         self.room_temp_entities = discover_room_temp_sensors(self._hass)
-        self.battery_entities = discover_battery_sensors(self._hass)
 
         for entity_id in self.trv_entities:
             self._trv[entity_id] = TRVTracker()
-        for entity_id in self.battery_entities:
-            self._battery[entity_id] = BatteryTracker()
         for entity_id in self.room_temp_entities:
             self._room_temps[entity_id] = None
 
@@ -249,16 +226,6 @@ class EcoComfortDataManager:
                     self._hass,
                     self.room_temp_entities,
                     self._handle_room_temp_change,
-                )
-            )
-
-        # Battery sensors
-        if self.battery_entities:
-            self._unsubs.append(
-                async_track_state_change_event(
-                    self._hass,
-                    self.battery_entities,
-                    self._handle_battery_change,
                 )
             )
 
@@ -460,19 +427,6 @@ class EcoComfortDataManager:
         self._notify("internal_temp")
 
     @callback
-    def _handle_battery_change(self, event: Any) -> None:
-        entity_id: str = event.data["entity_id"]
-        new_state: State | None = event.data.get("new_state")
-        if not _is_valid_state(new_state):
-            return
-        try:
-            float(new_state.state)  # validate parseable
-        except ValueError:
-            pass
-        # Battery drain is computed at midnight; live state changes just
-        # ensure we have the latest value when midnight arrives.
-
-    @callback
     def _handle_minute_tick(self, _now: datetime) -> None:
         """Called every minute to update heating-minute display counters and pump kWh.
 
@@ -521,33 +475,6 @@ class EcoComfortDataManager:
             self.kwh_per_hdd_today = None
 
         self._notify("hdd")
-
-        # Snapshot battery levels
-        today = dt_util.now().date()
-        for entity_id, bat_tracker in self._battery.items():
-            state = self._hass.states.get(entity_id)
-            if state is None or not _is_valid_state(state):
-                continue
-            try:
-                level = float(state.state)
-            except (ValueError, TypeError):
-                continue
-            bat_tracker.daily_snapshots.append((today, level))
-            # Compute drain rate from snapshots.
-            # Only *drain* days count (battery-replacement / recharge days
-            # where the level increased are excluded from the average so they
-            # don't suppress the reported drain rate).
-            snaps = list(bat_tracker.daily_snapshots)
-            if len(snaps) >= 2:
-                drain_days = [
-                    snaps[i][1] - snaps[i + 1][1]
-                    for i in range(len(snaps) - 1)
-                    if snaps[i][1] > snaps[i + 1][1]  # only genuine drain days
-                ]
-                bat_tracker.drain_rate_per_day = (
-                    sum(drain_days) / len(drain_days) if drain_days else 0.0
-                )
-            self._notify(f"battery_{entity_id}")
 
         # Reset daily accumulators
         self._daily_gas_kwh = 0.0
@@ -820,12 +747,6 @@ class EcoComfortDataManager:
     def get_heating_minutes_today(self, trv_entity_id: str) -> float | None:
         tracker = self._trv.get(trv_entity_id)
         return tracker.heating_minutes_today if tracker else None
-
-    def get_battery_drain_rate(self, battery_entity_id: str) -> float | None:
-        tracker = self._battery.get(battery_entity_id)
-        if tracker is None:
-            return None
-        return tracker.drain_rate_per_day
 
 
 # ---------------------------------------------------------------------------

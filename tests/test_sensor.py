@@ -15,7 +15,6 @@ from custom_components.ecocomfort_sync.data_manager import (
 )
 from custom_components.ecocomfort_sync.helpers import entity_slug
 from custom_components.ecocomfort_sync.sensor import (
-    BatteryDrainSensor,
     HDDSensor,
     HTCSensor,
     KWhPerHDDSensor,
@@ -199,63 +198,6 @@ class TestRoomSensors:
 
 
 # ---------------------------------------------------------------------------
-# Battery drain sensor
-# ---------------------------------------------------------------------------
-
-BAT_ENTITY = "sensor.tado_battery"
-BAT_SLUG = entity_slug(BAT_ENTITY)
-
-
-class TestBatterySensor:
-    def test_battery_drain_none_initially(self):
-        mgr = _make_manager()
-        from custom_components.ecocomfort_sync.data_manager import BatteryTracker
-        mgr._battery = {BAT_ENTITY: BatteryTracker()}
-        sensor = BatteryDrainSensor(mgr, _make_entry(), BAT_ENTITY, BAT_SLUG)
-        assert sensor.native_value is None
-
-    def test_battery_drain_value(self):
-        mgr = _make_manager()
-        from custom_components.ecocomfort_sync.data_manager import BatteryTracker
-        tracker = BatteryTracker()
-        tracker.drain_rate_per_day = 2.456
-        mgr._battery = {BAT_ENTITY: tracker}
-        sensor = BatteryDrainSensor(mgr, _make_entry(), BAT_ENTITY, BAT_SLUG)
-        assert sensor.native_value == pytest.approx(2.46)
-
-    def test_battery_source_entity_in_attributes(self):
-        mgr = _make_manager()
-        mgr._battery = {}
-        sensor = BatteryDrainSensor(mgr, _make_entry(), BAT_ENTITY, BAT_SLUG)
-        assert sensor.extra_state_attributes["source_entity"] == BAT_ENTITY
-
-    def test_battery_is_premature_drain_false(self):
-        mgr = _make_manager()
-        from custom_components.ecocomfort_sync.data_manager import BatteryTracker
-        tracker = BatteryTracker()
-        tracker.drain_rate_per_day = 2.0  # below default threshold of 5.0
-        mgr._battery = {BAT_ENTITY: tracker}
-        sensor = BatteryDrainSensor(mgr, _make_entry(), BAT_ENTITY, BAT_SLUG)
-        assert sensor.extra_state_attributes["is_premature_drain"] is False
-
-    def test_battery_is_premature_drain_true(self):
-        mgr = _make_manager()
-        from custom_components.ecocomfort_sync.data_manager import BatteryTracker
-        tracker = BatteryTracker()
-        tracker.drain_rate_per_day = 8.0  # above default threshold of 5.0
-        mgr._battery = {BAT_ENTITY: tracker}
-        sensor = BatteryDrainSensor(mgr, _make_entry(), BAT_ENTITY, BAT_SLUG)
-        assert sensor.extra_state_attributes["is_premature_drain"] is True
-
-    def test_battery_drain_threshold_in_attributes(self):
-        mgr = _make_manager()
-        mgr._battery = {}
-        sensor = BatteryDrainSensor(mgr, _make_entry(), BAT_ENTITY, BAT_SLUG)
-        attrs = sensor.extra_state_attributes
-        assert "drain_threshold_pct_per_day" in attrs
-
-
-# ---------------------------------------------------------------------------
 # Sensor unique ID composition
 # ---------------------------------------------------------------------------
 
@@ -271,11 +213,6 @@ class TestUniqueIds:
         s = RoomEnergySensor(mgr, _make_entry("eid"), ROOM_TRV, ROOM_SLUG)
         assert s.unique_id == f"eid_room_energy_kwh_{ROOM_SLUG}"
 
-    def test_battery_drain_unique_id(self):
-        mgr = _make_manager()
-        s = BatteryDrainSensor(mgr, _make_entry("eid"), BAT_ENTITY, BAT_SLUG)
-        assert s.unique_id == f"eid_battery_drain_rate_{BAT_SLUG}"
-
 
 # ---------------------------------------------------------------------------
 # Sensor platform setup (requires hass fixture)
@@ -289,7 +226,6 @@ async def test_sensor_setup_creates_entities(hass):
     # Pre-set discovered entities directly — no discovery needed
     mgr.trv_entities = []
     mgr.room_temp_entities = []
-    mgr.battery_entities = []
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["entry_id"] = mgr
@@ -320,7 +256,6 @@ async def test_sensor_setup_creates_per_room_entities(hass):
     mgr = EcoComfortDataManager(hass, "entry_id", DEFAULT_CONFIG)
     mgr.trv_entities = ["climate.tado_bedroom", "climate.tado_lounge"]
     mgr.room_temp_entities = []
-    mgr.battery_entities = []
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["entry_id"] = mgr

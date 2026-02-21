@@ -19,7 +19,6 @@ from custom_components.ecocomfort_sync.const import (
     SHORT_CYCLE_THRESHOLD,
 )
 from custom_components.ecocomfort_sync.data_manager import (
-    BatteryTracker,
     EcoComfortDataManager,
     HtcSample,
     TRVTracker,
@@ -468,123 +467,6 @@ class TestPumpElectricity:
 
 
 # ---------------------------------------------------------------------------
-# Battery drain
-# ---------------------------------------------------------------------------
-
-class TestBatteryDrain:
-    def test_single_day_drop(self):
-        from datetime import date
-        mgr = _make_manager()
-        bat = "sensor.device_battery"
-        mgr._battery = {bat: BatteryTracker()}
-        tracker = mgr._battery[bat]
-        tracker.daily_snapshots.append((date(2026, 2, 20), 80.0))
-        tracker.daily_snapshots.append((date(2026, 2, 21), 77.0))
-        drops = [
-            max(0.0, tracker.daily_snapshots[i][1] - tracker.daily_snapshots[i + 1][1])
-            for i in range(len(tracker.daily_snapshots) - 1)
-        ]
-        drain = sum(drops) / len(drops)
-        assert drain == pytest.approx(3.0)
-
-    def test_no_drain(self):
-        from datetime import date
-        tracker = BatteryTracker()
-        tracker.daily_snapshots.append((date(2026, 2, 20), 80.0))
-        tracker.daily_snapshots.append((date(2026, 2, 21), 80.0))
-        drops = [
-            max(0.0, tracker.daily_snapshots[i][1] - tracker.daily_snapshots[i + 1][1])
-            for i in range(len(tracker.daily_snapshots) - 1)
-        ]
-        assert sum(drops) / len(drops) == 0.0
-
-    def test_rolling_7_day_average(self):
-        from datetime import date
-        tracker = BatteryTracker()
-        # Days with 2%, 4%, 6% drops → average = 4%
-        levels = [100.0, 98.0, 94.0, 88.0]
-        for i, level in enumerate(levels):
-            tracker.daily_snapshots.append((date(2026, 2, 18 + i), level))
-        drops = [
-            max(0.0, tracker.daily_snapshots[i][1] - tracker.daily_snapshots[i + 1][1])
-            for i in range(len(tracker.daily_snapshots) - 1)
-        ]
-        avg = sum(drops) / len(drops)
-        assert avg == pytest.approx(4.0)
-
-    def test_maxlen_7_days(self):
-        from datetime import date
-        tracker = BatteryTracker()
-        for i in range(10):
-            tracker.daily_snapshots.append((date(2026, 2, 1 + i), float(100 - i)))
-        assert len(tracker.daily_snapshots) == 7
-
-    def test_single_snapshot_returns_none(self):
-        mgr = _make_manager()
-        bat = "sensor.device_battery"
-        mgr._battery = {bat: BatteryTracker()}
-        assert mgr.get_battery_drain_rate(bat) is None
-
-    def test_unknown_entity_returns_none(self):
-        mgr = _make_manager()
-        assert mgr.get_battery_drain_rate("sensor.nonexistent") is None
-
-
-# ---------------------------------------------------------------------------
-# Battery drain — manager-level behaviour (recharge exclusion)
-# ---------------------------------------------------------------------------
-
-class TestBatteryDrainManager:
-    """Tests exercising the midnight battery-snapshot logic through the manager."""
-
-    def _run_midnight_snapshots(self, levels: list[float]) -> float | None:
-        """Helper: feed the given battery level sequence through midnight snapshots."""
-        from datetime import date
-        from unittest.mock import MagicMock
-        mgr = _make_manager()
-        bat = "sensor.device_battery"
-        mgr._battery = {bat: BatteryTracker()}
-        tracker = mgr._battery[bat]
-
-        for i, level in enumerate(levels):
-            day = date(2026, 2, 10 + i)
-            tracker.daily_snapshots.append((day, level))
-            # Recompute drain_rate using the same logic as _handle_midnight
-            snaps = list(tracker.daily_snapshots)
-            if len(snaps) >= 2:
-                drain_days = [
-                    snaps[j][1] - snaps[j + 1][1]
-                    for j in range(len(snaps) - 1)
-                    if snaps[j][1] > snaps[j + 1][1]
-                ]
-                tracker.drain_rate_per_day = (
-                    sum(drain_days) / len(drain_days) if drain_days else 0.0
-                )
-        return tracker.drain_rate_per_day
-
-    def test_normal_drain_only(self):
-        """Steady 3%/day drain over 3 days."""
-        rate = self._run_midnight_snapshots([100.0, 97.0, 94.0, 91.0])
-        assert rate == pytest.approx(3.0)
-
-    def test_recharge_day_excluded_from_denominator(self):
-        """Day where battery went up (recharge) is excluded; average stays accurate."""
-        # Drain: day1=5, day2 recharge (+20), day3=5 → average of drain days = 5
-        rate = self._run_midnight_snapshots([80.0, 75.0, 95.0, 90.0])
-        assert rate == pytest.approx(5.0)
-
-    def test_all_recharge_no_drain(self):
-        """If battery never drained (e.g., mains-powered device), rate is 0."""
-        rate = self._run_midnight_snapshots([50.0, 60.0, 70.0])
-        assert rate == pytest.approx(0.0)
-
-    def test_replacement_day_excluded(self):
-        """When battery jumps to 100% (replacement), that day is excluded."""
-        # 10% drain, then replacement, then 10% drain → average = 10
-        rate = self._run_midnight_snapshots([90.0, 80.0, 100.0, 90.0])
-        assert rate == pytest.approx(10.0)
-
-
 # ---------------------------------------------------------------------------
 # Minute tick — room notifications
 # ---------------------------------------------------------------------------

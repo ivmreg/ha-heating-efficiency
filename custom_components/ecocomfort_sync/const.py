@@ -17,8 +17,6 @@ DEFAULT_BOILER_EFFICIENCY = 0.90
 DEFAULT_PUMP_WATTAGE = 45
 DEFAULT_T_BASE = 18.0
 DEFAULT_WIND_FACTOR = 0.1
-# Battery drain rate above which a "premature drain" warning is issued (%/day)
-DEFAULT_BATTERY_DRAIN_THRESHOLD = 5.0
 
 # Sensor keys — building-level (unique per entry)
 SENSOR_HTC = "building_htc"
@@ -31,9 +29,6 @@ SENSOR_WEIGHTED_INTERNAL_TEMP = "weighted_internal_temp"
 SENSOR_ROOM_ENERGY_PREFIX = "room_energy_kwh"
 SENSOR_ROOM_SHORT_CYCLING_PREFIX = "room_short_cycling"
 SENSOR_ROOM_HEATING_MINUTES_PREFIX = "room_heating_minutes_today"
-
-# Sensor key prefix — per-battery device
-SENSOR_BATTERY_DRAIN_PREFIX = "battery_drain_rate"
 
 # Rolling window durations (seconds)
 WINDOW_24H = 24 * 3600

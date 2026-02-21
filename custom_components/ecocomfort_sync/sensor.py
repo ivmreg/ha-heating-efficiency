@@ -22,10 +22,8 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
-    DEFAULT_BATTERY_DRAIN_THRESHOLD,
     DOMAIN,
     NAME,
-    SENSOR_BATTERY_DRAIN_PREFIX,
     SENSOR_HDD,
     SENSOR_HTC,
     SENSOR_KWH_PER_HDD,
@@ -68,11 +66,6 @@ async def async_setup_entry(
                 RoomHeatingMinutesSensor(manager, entry, trv_entity_id, slug),
             ]
         )
-
-    # Per-battery sensors
-    for battery_entity_id in manager.battery_entities:
-        slug = entity_slug(battery_entity_id)
-        sensors.append(BatteryDrainSensor(manager, entry, battery_entity_id, slug))
 
     async_add_entities(sensors)
 
@@ -357,47 +350,3 @@ class RoomHeatingMinutesSensor(_RoomSensorBase):
         return round(val, 1) if val is not None else None
 
 
-# ---------------------------------------------------------------------------
-# Per-battery sensors (dynamic)
-# ---------------------------------------------------------------------------
-
-
-class BatteryDrainSensor(EcoComfortSensorBase):
-    """Average daily battery drain rate for a device (%/day)."""
-
-    def __init__(
-        self,
-        manager: EcoComfortDataManager,
-        entry: ConfigEntry,
-        battery_entity_id: str,
-        device_slug: str,
-    ) -> None:
-        super().__init__(
-            manager,
-            entry,
-            f"{SENSOR_BATTERY_DRAIN_PREFIX}_{device_slug}",
-            f"battery_{battery_entity_id}",
-        )
-        self._battery_entity_id = battery_entity_id
-        friendly_device = device_slug.replace("_battery", "").replace("_", " ").title()
-        self._attr_name = f"{friendly_device} Battery Drain Rate"
-        self._attr_native_unit_of_measurement = "%/day"
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_icon = "mdi:battery-alert"
-
-    @property
-    def native_value(self) -> float | None:
-        rate = self._manager.get_battery_drain_rate(self._battery_entity_id)
-        return round(rate, 2) if rate is not None else None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        rate = self._manager.get_battery_drain_rate(self._battery_entity_id)
-        threshold = self._manager.battery_drain_threshold
-        return {
-            "source_entity": self._battery_entity_id,
-            "is_premature_drain": (
-                rate is not None and rate > threshold
-            ),
-            "drain_threshold_pct_per_day": threshold,
-        }
