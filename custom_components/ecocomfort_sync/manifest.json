@@ -8,5 +8,6 @@
   "requirements": [],
   "dependencies": [],
   "iot_class": "calculated",
-  "config_flow": true
+  "config_flow": true,
+  "integration_type": "service"
 }
