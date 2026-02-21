@@ -6,7 +6,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import (
@@ -111,8 +111,6 @@ class EcoComfortSyncConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Handle the user-initiated setup step."""
-        errors: dict[str, str] = {}
-
         if user_input is not None:
             # Prevent duplicate entries
             await self.async_set_unique_id(DOMAIN)
@@ -123,7 +121,6 @@ class EcoComfortSyncConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=_build_schema(),
-            errors=errors,
         )
 
     @staticmethod
