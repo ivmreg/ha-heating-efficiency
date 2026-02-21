@@ -7,6 +7,6 @@
   "codeowners": ["@ivmreg"],
   "requirements": [],
   "dependencies": [],
-  "iot_class": "local_polling",
+  "iot_class": "calculated",
   "config_flow": true
 }
