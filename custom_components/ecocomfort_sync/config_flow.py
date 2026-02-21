@@ -37,19 +37,28 @@ def _build_schema(
                 CONF_GAS_KWH_SENSOR,
                 default=d.get(CONF_GAS_KWH_SENSOR, ""),
             ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor")
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    device_class="energy",
+                )
             ),
             vol.Required(
                 CONF_EXTERNAL_TEMP_SENSOR,
                 default=d.get(CONF_EXTERNAL_TEMP_SENSOR, ""),
             ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor")
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    device_class="temperature",
+                )
             ),
             vol.Required(
                 CONF_WIND_SPEED_SENSOR,
                 default=d.get(CONF_WIND_SPEED_SENSOR, ""),
             ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor")
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    device_class="wind_speed",
+                )
             ),
             vol.Optional(
                 CONF_BOILER_EFFICIENCY,
